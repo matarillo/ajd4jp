@@ -1,0 +1,84 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<title>日付選択</title>
+<style type="text/css">
+*{}
+div.ajd4jp_outline, div.ajd4jp_outline * {
+margin: 0px;
+padding: 0px;
+}
+div.ajd4jp_outline * table, div.ajd4jp_outline * tr, div.ajd4jp_outline * td {
+border:0px none;
+}
+table.ajd4jp {
+font-size:80%;
+background-color:white;
+}
+table.ajd4jp a{
+text-decoration:none;
+color:black;
+}
+table.ajd4jp a:hover{  
+  background-color:MEDIUMSPRINGGREEN;
+}
+div.ajd4jp_calendar td{
+border:0px;
+text-align:right;
+padding:0px 4px;
+margin: 0px;
+color:LIGHTGREY;
+}
+div.ajd4jp_calendar td.sun a {
+color:red;
+}
+div.ajd4jp_calendar td.sat a {
+color:blue;
+}
+.ajd4jp_allow {
+font-size:150%;
+font-weight:bold;
+text-shadow: 1px 1px 2px gray;
+}
+</style>
+</head>
+<body>
+<div class="ajd4jp_outline">
+<form action="jp_calendar.html" id="ajd4jp_form" style="margin:0px;padding:0px;">
+<table class="ajd4jp">
+<tr><td align="right"><a href="jp_calendar.html?close=" class="ajd4jp_allow" title="閉じる">×</a></td>
+</tr>
+  <tr >
+    <td align="center">
+    <a href="jp_calendar.html?prev=" class="ajd4jp_allow" title="前月へ" name="prev">&#x25C0;</a> &nbsp; &nbsp;<select name="year" style="font-size:85%">
+      <option value="1900">1900</option>
+      <option value="1901">1901</option>
+    </select>年&nbsp;
+    <select name="month" style="font-size:85%">
+      <option value="1">1</option>
+      <option value="12">12</option>
+    </select>月&nbsp; <input type="submit" name="change" value="変更" style="font-size:90%"> &nbsp;<a href="jp_calendar.html?next=" class="ajd4jp_allow" title="翌月へ" name="next">&#x25B6;</a>
+    </td>
+  </tr><tr>
+    <td>
+    <div class="ajd4jp_calendar">
+    <table name="main">
+      <tr>
+        <td class="sun"><a href="jp_calendar.html">　1</a></td>
+        <td><a href="jp_calendar.html">　2</a></td>
+        <td><a href="jp_calendar.html">　3</a></td>
+        <td><a href="jp_calendar.html">　4</a></td>
+        <td><a href="jp_calendar.html">　5</a></td>
+        <td><a href="jp_calendar.html">　6</a></td>
+        <td  class="sat"><a href="jp_calendar.html">　7</a></td>
+      </tr>
+    </table>
+    </div>
+    </td>
+  </tr>
+</table>
+</form>
+</div>
+</body>
+</html>

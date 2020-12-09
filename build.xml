@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="ajd4jp" default="build" basedir=".">
+	<property name="src.dir" value="ajd4jp"/>
+	<property name="class.dir" value="classes"/>
+	<property name="jar.dir" value="bin"/>
+	<property name="api.dir" value="api"/>
+	<loadfile property="ver" srcFile="Version.txt">
+		<filterchain>
+			<striplinebreaks/>
+		</filterchain>
+	</loadfile>
+	<property name="tar.dir" value="ajd4jp-${ver}"/>
+	<property name="jar.name" value="${tar.dir}.jar"/>
+	<property name="jar.crt" value="ajd4jp.jar"/>
+	<property name="release" value="${jar.dir}/${tar.dir}.src.tar.gz"/>
+	<property name="auth" value="Akira Terasaki"/>
+
+	<target name="build">
+		<mkdir dir="${class.dir}"/>
+		<mkdir dir="${jar.dir}"/>
+		<mkdir dir="${api.dir}"/>
+		<delete file="${src.dir}/Version.java"/>
+		<copy file="template/Version.java" tofile="${src.dir}/Version.java"/>
+		<replace file="${src.dir}/Version.java" token="@@@ver" value="${ver}"/>
+		<replace file="${src.dir}/Version.java" token="@@@auth" value="${auth}"/>
+		<javac includeAntRuntime="no" srcdir="${src.dir}" destdir="${class.dir}" sourcepath="" debug="on" target="6">
+			<include name="**/*.java"/>
+			<compilerarg value="-Xlint:unchecked" />
+		</javac>
+
+		<delete file="${release}"/>
+		<delete dir="${tar.dir}"/>
+		<mkdir dir="${tar.dir}"/>
+		<exec executable="cp">
+			<arg line="-pr Copyright.txt License.txt Version.txt build.xml ajd4jp template ${tar.dir}"/>
+		</exec>
+		<exec executable="tar">
+			<arg line="zcvf ${release} ${tar.dir}"/>
+		</exec>
+		<delete dir="${tar.dir}"/>
+
+		<copy file="Copyright.txt" tofile="${class.dir}/Copyright.txt"/>
+		<copy file="License.txt" tofile="${class.dir}/License.txt"/>
+		<copy file="Version.txt" tofile="${class.dir}/Version.txt"/>
+		<delete file="${jar.dir}/${jar.name}"/>
+		<jar destfile="${jar.dir}/${jar.name}" basedir="${class.dir}" index="true">
+			<manifest>
+				<attribute name="Extension-Name" value="ajd4jp"/>
+				<attribute name="Specification-Title" value="AJD4JP DB Library"/>
+				<attribute name="Specification-Version" value="${ver}"/>
+				<attribute name="Specification-Vendor" value="${auth}"/>
+				<attribute name="Implementation-Title" value="ajd4jp"/>
+				<attribute name="Implementation-Version" value="${ver}"/>
+				<attribute name="Implementation-Vendor" value="${auth}"/>
+				<attribute name="Sealed" value="true"/>
+			</manifest>
+		</jar>
+		<exec executable="ln" dir="${jar.dir}">
+			<arg line="-fs ${jar.name} ${jar.crt}"/>
+		</exec>
+
+		<javadoc destdir="${api.dir}" use="true" encoding="UTF-8" charset="UTF-8" docencoding="UTF-8" Locale="ja_JP"
+			windowtitle="AJD4JP ${ver} API" Overview="template/overview.html">
+			<doctitle>AJD4JP ${ver} API 仕様</doctitle>
+			<fileset dir=".">
+				<include name="ajd4jp/**"/>
+				<exclude name="ajd4jp/util/**"/>
+				<exclude name="ajd4jp/orrery/tool/**"/>
+			</fileset>
+			<link href="https://docs.oracle.com/javase/jp/8/docs/api/"/>
+		</javadoc>
+	</target>
+
+	<target name="clean">
+		<delete dir="${class.dir}"/>
+		<delete dir="${jar.dir}"/>
+		<delete dir="${api.dir}"/>
+	</target>
+</project>
+
