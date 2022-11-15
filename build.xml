@@ -24,7 +24,7 @@
 		<copy file="template/Version.java" tofile="${src.dir}/Version.java"/>
 		<replace file="${src.dir}/Version.java" token="@@@ver" value="${ver}"/>
 		<replace file="${src.dir}/Version.java" token="@@@auth" value="${auth}"/>
-		<javac includeAntRuntime="no" srcdir="${src.dir}" destdir="${class.dir}" sourcepath="" debug="on" target="6">
+		<javac includeAntRuntime="no" srcdir="${src.dir}" destdir="${class.dir}" sourcepath="" debug="on">
 			<include name="**/*.java"/>
 			<compilerarg value="-Xlint:unchecked" />
 		</javac>

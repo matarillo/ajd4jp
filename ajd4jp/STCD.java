@@ -1,14 +1,19 @@
 /*
  * AJD4JP
- * Copyright (c) 2011-2016  Akira Terasaki
+ * Copyright (c) 2011-2021  Akira Terasaki
  * このファイルは同梱されているLicense.txtに定めた条件に
  * 同意できる場合にのみ利用可能です。
  */
 package ajd4jp;
 
-import ajd4jp.util.*;
-import java.util.*;
-import java.math.*;
+import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import ajd4jp.iso.Year;
+import ajd4jp.util.AjdFactory;
+import ajd4jp.util.Calc;
 
 /**
  * 節(*1)切りでの日付を表します。立春を年始とし、12ヶ月に区切ります。<br>
@@ -30,17 +35,20 @@ import java.math.*;
 public class STCD implements Day {
 	private static final long serialVersionUID = 1;
 	private static final int YEAR = 315;
-	private static HashMap<Integer, AJD>	start_day = new HashMap<Integer, AJD>();
-	static AJD getStart( int year, int r ) {
-		int	key = (year << 9) | r;
-		synchronized( start_day ) {
-			AJD	ret = start_day.get( key );
-			if ( ret == null ) {
+	private static HashMap<Year, HashMap<Integer, AJD>> start_day = new HashMap<Year, HashMap<Integer, AJD>>();
+
+	static AJD getStart(Year year, int r) {
+		synchronized (start_day) {
+			AJD ret = null;
+			HashMap<Integer, AJD> ymap = start_day.get(year);
+			if (ymap != null) { ret = ymap.get(r); }
+			if (ret == null) {
 				try {
-					ret = Equinox.getAJD( year, r ).trim();
+					ret = Equinox.getAJD(year, r).trim();
+				} catch (AJDException e) {
 				}
-				catch( AJDException e ){}
-				start_day.put( key, ret );
+				if (ymap == null) { start_day.put(year, ymap = new HashMap<Integer, AJD>()); }
+				ymap.put(r, ret);
 			}
 			return ret;
 		}
@@ -58,7 +66,9 @@ public class STCD implements Day {
 		SUMMER(135),
 		/** 秋。 */
 		AUTUMN(225);
+
 		private int start, end;
+
 		private Doyo(int r) {
 			start = r - 18;
 			end = r;
@@ -70,54 +80,84 @@ public class STCD implements Day {
 		 * @param filter 特定の干支のみ(例えば丑)必要な場合に指定します。
 		 * 無指定ならば全ての土用を返します。
 		 * @return 取得した全日程。
-		 * @exception AJDException 年の指定に誤りがある場合。
 		 */
-		public AJD[] getDoyo(int year, EarthlyBranch ... filter) throws AJDException {
-			AJD.check(year, 1);
+		public AJD[] getDoyo(Year year, EarthlyBranch... filter) {
 			AJD[] ajd = new AJD[] {
-				getStart(year, start), getStart(year, end)
+					getStart(year, start), getStart(year, end)
 			};
 			ArrayList<AJD> list = new ArrayList<AJD>();
 			for (AJD k = ajd[0]; k.compareTo(ajd[1]) < 0; k = k.addDay(1)) {
 				boolean hit = filter.length == 0;
-				for (EarthlyBranch f: filter) {
+				for (EarthlyBranch f : filter) {
 					if (EarthlyBranch.getDay(k) == f) {
 						hit = true;
 						break;
 					}
 				}
-				if (hit) { list.add(k); }
+				if (hit) {
+					list.add(k);
+				}
 			}
 			return list.toArray(new AJD[0]);
 		}
 
+		/**
+		 * 土用の期間を返します。土用最終日が節分となります。
+		 * @param year 取得したい西暦年。節月の年ではありません。
+		 * @param filter 特定の干支のみ(例えば丑)必要な場合に指定します。
+		 * 無指定ならば全ての土用を返します。
+		 * @return 取得した全日程。
+		 * @exception AJDException 年の指定に誤りがある場合。
+		 */
+		public AJD[] getDoyo(int year, EarthlyBranch... filter) throws AJDException {
+			return getDoyo(year, AJD.OFFSET, filter);
+		}
+
+		/**
+		 * 土用の期間を返します。土用最終日が節分となります。
+		 * @param year 取得したい西暦年。節月の年ではありません。
+		 * @param zone タイムゾーン
+		 * @param filter 特定の干支のみ(例えば丑)必要な場合に指定します。
+		 * 無指定ならば全ての土用を返します。
+		 * @return 取得した全日程。
+		 * @exception AJDException 年の指定に誤りがある場合。
+		 */
+		public AJD[] getDoyo(int year, ZoneId zone, EarthlyBranch... filter) throws AJDException {
+			return getDoyo(Year.fromAJD(year, zone), filter);
+		}
 	}
 
-	private AJD	ajd;
+	private AJD ajd;
 	private int yy, mm, dd;
+
 	/**
 	 * コンストラクタ。指定日と等価な、節切りでの日付を生成します。
 	 * @param day 日付。
 	 */
-	public STCD( Day day ) {
+	public STCD(Day day) {
 		this(day, false);
 	}
-	private STCD( Day day, boolean test_f ) {
-		ajd = new AJD( day.getAJD() );
+
+	private STCD(Day day, boolean test_f) {
+		ZoneId zone = day.getZoneId();
+		ajd = AjdFactory.makeAJD(day.getAJD(), zone);
 		yy = ajd.getYear();
-		if ( ajd.compareTo( getStart( yy, YEAR ) ) < 0 ) {
+		if (ajd.compareTo(getStart(ajd.toYear(), YEAR)) < 0) {
 			yy--;
-			if ( yy <= 0 )	yy--;
+			if (yy <= 0)
+				yy--;
 		}
-		int	sun = getSun( ajd );
+		int sun = getSun(ajd);
 		mm = sun - YEAR;
-		if ( mm < 0 )	mm += 360;
+		if (mm < 0)
+			mm += 360;
 		mm = mm / 30 + 1;
 		sun = (mm - 1) * 30 + YEAR;
-		if ( sun > 360 )	sun -= 360;
-		dd = new Span( getStart( ajd.getYear(), sun ), ajd ).getDayPart() + 1;
-		if ( dd > 31 ) {
-			dd = new Span( getStart( yy, sun ), ajd ).getDayPart() + 1;
+		if (sun > 360)
+			sun -= 360;
+		dd = new Span(getStart(ajd.toYear(), sun), ajd).getDayPart() + 1;
+		if (dd > 31) {
+			dd = new Span(getStart(Year.fromAJD(yy, zone), sun), ajd).getDayPart() + 1;
 		}
 		if (!test_f && dd > 20) {
 			STCD test = new STCD(ajd.addDay(1), true);
@@ -129,14 +169,16 @@ public class STCD implements Day {
 		}
 	}
 
-	private static int getSun( AJD ajd ) {
-		BigDecimal	sun = Equinox.getSun( ajd.getAJD() );
-		if ( sun.compareTo( BigDecimal.ZERO ) < 0 )	sun = sun.add( Equinox.R360 );
-		int	ret = (int)Calc.cut( sun );
+	private static int getSun(AJD ajd) {
+		BigDecimal sun = Equinox.getSun(ajd.getAJD());
+		if (sun.compareTo(BigDecimal.ZERO) < 0)
+			sun = sun.add(Equinox.R360);
+		int ret = (int) Calc.cut(sun);
 		ret = ret / 15 * 15;
-		if ( (ret % 10) == 0 ) {
+		if ((ret % 10) == 0) {
 			ret -= 15;
-			if ( ret < 0 )	ret += 360;
+			if (ret < 0)
+				ret += 360;
 		}
 		return ret;
 	}
@@ -147,8 +189,8 @@ public class STCD implements Day {
 	 * @param jd 比較対象。
 	 * @return -1:this&lt;jd(thisが過去)、0:this==jd、1:this&gt;jd(thisが未来)。
 	 */
-	public int compareTo( Day jd ) {
-		return ajd.compareTo( jd );
+	public int compareTo(Day jd) {
+		return ajd.compareTo(jd);
 	}
 
 	/**
@@ -163,8 +205,8 @@ public class STCD implements Day {
 	 * ユリウス通日の比較。
 	 * @return true:ユリウス通日が一致、false:ユリウス通日が不一致。
 	 */
-	public boolean equals( Object o ) {
-		return ajd.equals( o );
+	public boolean equals(Object o) {
+		return ajd.equals(o);
 	}
 
 	/**
@@ -172,9 +214,8 @@ public class STCD implements Day {
 	 * @return yyyy/mm/dd hh:mm:ss形式のフォーマットで返します。
 	 */
 	public String toString() {
-		return String.format( "%d/%02d/%02d/ %02d:%02d:%02d", yy, mm, dd,
-			getHour(), getMinute(), getSecond()
-		);
+		return String.format("%d/%02d/%02d/ %02d:%02d:%02d", yy, mm, dd,
+				getHour(), getMinute(), getSecond());
 	}
 
 	/**
@@ -197,32 +238,49 @@ public class STCD implements Day {
 	 * 年を返します。
 	 * @return 年。
 	 */
-	public int getYear() { return yy; }
+	public int getYear() {
+		return yy;
+	}
+
 	/**
 	 * 月を返します。
 	 * @return 月。
 	 */
-	public int getMonth() { return mm; }
+	public int getMonth() {
+		return mm;
+	}
+
 	/**
 	 * 日を返します。
 	 * @return 日。
 	 */
-	public int getDay() { return dd; }
+	public int getDay() {
+		return dd;
+	}
+
 	/**
 	 * 時を返します。
 	 * @return 時。
 	 */
-	public int getHour() { return ajd.getHour(); }
+	public int getHour() {
+		return ajd.getHour();
+	}
+
 	/**
 	 * 分を返します。
 	 * @return 分。
 	 */
-	public int getMinute() { return ajd.getMinute(); }
+	public int getMinute() {
+		return ajd.getMinute();
+	}
+
 	/**
 	 * 秒を返します。
 	 * @return 秒。
 	 */
-	public int getSecond() { return ajd.getSecond(); }
+	public int getSecond() {
+		return ajd.getSecond();
+	}
 
 	/**
 	 * 九星。節切りで判断されます。<br>
@@ -237,37 +295,44 @@ public class STCD implements Day {
 	 */
 	public enum Kyusei {
 		/** 一白水星 */
-		WHITE1( "一白水星" ),
+		WHITE1("一白水星"),
 		/** 二黒土星 */
-		BLACK2( "二黒土星" ),
+		BLACK2("二黒土星"),
 		/** 三碧木星 */
-		BLUE3( "三碧木星" ),
+		BLUE3("三碧木星"),
 		/** 四緑木星 */
-		GREEN4( "四緑木星" ),
+		GREEN4("四緑木星"),
 		/** 五黄土星 */
-		YELLOW5( "五黄土星" ),
+		YELLOW5("五黄土星"),
 		/** 六白金星 */
-		WHITE6( "六白金星" ),
+		WHITE6("六白金星"),
 		/** 七赤金星 */
-		RED7( "七赤金星" ),
+		RED7("七赤金星"),
 		/** 八白土星 */
-		WHITE8( "八白土星" ),
+		WHITE8("八白土星"),
 		/** 九紫火星 */
-		PURPLE9( "九紫火星" );
+		PURPLE9("九紫火星");
 
 		private String name;
-		private Kyusei( String n ) { name = n; }
+
+		private Kyusei(String n) {
+			name = n;
+		}
 
 		/**
 		 * 名称の取得。
 		 * @return 一白水星～九紫火星。
 		 */
-		public String getName() { return name; }
+		public String getName() {
+			return name;
+		}
 
-		private static final Kyusei[]	ky = values();
-		private static Kyusei fix( int v ) {
+		private static final Kyusei[] ky = values();
+
+		private static Kyusei fix(int v) {
 			v %= ky.length;
-			if ( v < 0 )	v += ky.length;
+			if (v < 0)
+				v += ky.length;
 			return ky[v];
 		}
 
@@ -276,11 +341,12 @@ public class STCD implements Day {
 		 * @param date 年の取得先。立春を年の開始とします。
 		 * @return その年を表す九星。
 		 */
-		public static Kyusei getYear( Day date ) {
-			date = new AJD( date.getAJD() ).trim();
-			int yy = new STCD( date ).getYear();
-			if ( yy < 0 )	yy++;
-			return fix( 10 - yy );
+		public static Kyusei getYear(Day date) {
+			date = AjdFactory.makeAJD(date.getAJD(), date.getZoneId()).trim();
+			int yy = new STCD(date).getYear();
+			if (yy < 0)
+				yy++;
+			return fix(10 - yy);
 		}
 
 		/**
@@ -288,62 +354,64 @@ public class STCD implements Day {
 		 * @param date 月の取得先。節月を取ります。
 		 * @return その月を表す九星。
 		 */
-		public static Kyusei getMonth( Day date ) {
-			date = new AJD( date.getAJD() ).trim();
-			STCD	stcd = new STCD( date );
-			EarthlyBranch	year = EarthlyBranch.getYear( stcd );
-			int	start = 8 - (year.getNo() % 3) * 3;
-			return fix( start - stcd.getMonth() );
+		public static Kyusei getMonth(Day date) {
+			date = AjdFactory.makeAJD(date.getAJD(), date.getZoneId()).trim();
+			STCD stcd = new STCD(date);
+			EarthlyBranch year = EarthlyBranch.getYear(stcd);
+			int start = 8 - (year.getNo() % 3) * 3;
+			return fix(start - stcd.getMonth());
 		}
 
 		private static class Start {
-			int	no;
-			int	r;
-			AJD	ajd;
-			Start(){}
+			int no;
+			int r;
+			AJD ajd;
+
+			Start() {
+			}
 		}
 
-		private static Start getStart( int r, AJD base ) {
-			HeavenlyStem	h = HeavenlyStem.getDay( base );
-			EarthlyBranch	e = EarthlyBranch.getDay( base );
-			int	base_no = SexagenaryCycle.getNo( h, e );
-			Start	start = new Start();
+		private static Start getStart(int r, AJD base) {
+			HeavenlyStem h = HeavenlyStem.getDay(base);
+			EarthlyBranch e = EarthlyBranch.getDay(base);
+			int base_no = SexagenaryCycle.getNo(h, e);
+			Start start = new Start();
 			start.r = r;
-			if ( base_no < 29 ) {
-				start.no = r == Equinox.SUMMER?	8:	0;
-				start.ajd = base.addDay( -1 * base_no );
-			}
-			else if ( base_no > 31 ) {
-				start.no = r == Equinox.SUMMER?	8:	0;
-				start.ajd = base.addDay( 60 - base_no );
-			}
-			else {
-				start.no = r == Equinox.SUMMER?	2:	6;
-				start.ajd = base.addDay( base_no - 30 );
+			if (base_no < 29) {
+				start.no = r == Equinox.SUMMER ? 8 : 0;
+				start.ajd = base.addDay(-1 * base_no);
+			} else if (base_no > 31) {
+				start.no = r == Equinox.SUMMER ? 8 : 0;
+				start.ajd = base.addDay(60 - base_no);
+			} else {
+				start.no = r == Equinox.SUMMER ? 2 : 6;
+				start.ajd = base.addDay(30 - base_no);
 			}
 			return start;
 		}
 
-		private static Start getStart( Day stcd ) {
-			int	r = Equinox.SUMMER, y = stcd.getYear() - 2;
-			AJD	last = null, next = null;
-			for ( ; ; r += 180 ) {
-				if ( r >= 360 ) {
+		private static Start getStart(Day stcd, ZoneId zone) {
+			int r = Equinox.SUMMER, y = stcd.getYear() - 2;
+			AJD last = null, next = null;
+			for (;; r += 180) {
+				if (r >= 360) {
 					r -= 360;
 					y++;
+					if (y == 0) { y = 1; }
 				}
-				next = STCD.getStart( y, r );
-				if ( last != null ) {
-					if ( next.compareTo( stcd ) > 0 )	break;
+				next = STCD.getStart(Year.fromAJD(y, zone), r);
+				if (last != null) {
+					if (next.compareTo(stcd) > 0)
+						break;
 				}
 				last = next;
 			}
-			Start	start1 = getStart( (r + 180) % 360, last );
-			Start	start2 = getStart( r, next );
-			if ( start1.ajd.compareTo( stcd ) > 0 ) {
-				return getStart( new AJD( stcd.getAJD() ).addDay( -30 ) );
+			Start start1 = getStart((r + 180) % 360, last);
+			Start start2 = getStart(r, next);
+			if (start1.ajd.compareTo(stcd) > 0) {
+				return getStart(AjdFactory.makeAJD(stcd.getAJD(), zone).addDay(-30), zone);
 			}
-			return (start2.ajd.compareTo( stcd ) <= 0)?	start2:	start1;
+			return (start2.ajd.compareTo(stcd) <= 0) ? start2 : start1;
 		}
 
 		/**
@@ -351,32 +419,32 @@ public class STCD implements Day {
 		 * @param date 日の取得先。
 		 * @return その日を表す九星。
 		 */
-		public static Kyusei getDay( Day date ) {
-			date = new AJD( date.getAJD() ).trim();
-			Start	start = getStart( date );
-			int	cnt = new Span( date, start.ajd ).getDayPart();
-			if ( start.r == Equinox.SUMMER ) {
-				return fix( start.no - cnt );
+		public static Kyusei getDay(Day date) {
+			ZoneId zone = date.getZoneId();
+			date = AjdFactory.makeAJD(date.getAJD(), zone).trim();
+			Start start = getStart(date, zone);
+			int cnt = new Span(date, start.ajd).getDayPart();
+			if (start.r == Equinox.SUMMER) {
+				return fix(start.no - cnt);
 			}
-			return fix( start.no + cnt );
+			return fix(start.no + cnt);
 		}
-		
+
 		/**
 		 * 時間の九星の取得。
 		 * @param date 時間の取得先。
 		 * @return その時間を表す九星。
 		 */
-		public static Kyusei getTime( Day date ) {
-			Start	start = getStart( date );
-			int	day = EarthlyBranch.getDay( date ).getNo() % 3;
-			int	base = start.r == Equinox.SUMMER?	8 - day * 3:	day * 3;
-			int	time = EarthlyBranch.getTime( date ).getNo();
-			if ( start.r == Equinox.SUMMER ) {
-				return fix( base - time );
+		public static Kyusei getTime(Day date) {
+			Start start = getStart(date, date.getZoneId());
+			int day = EarthlyBranch.getDay(date).getNo() % 3;
+			int base = start.r == Equinox.SUMMER ? 8 - day * 3 : day * 3;
+			int time = EarthlyBranch.getTime(date).getNo();
+			if (start.r == Equinox.SUMMER) {
+				return fix(base - time);
 			}
-			return fix( base + time );
+			return fix(base + time);
 		}
 	}
 
 }
-

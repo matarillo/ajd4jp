@@ -1,6 +1,6 @@
 /*
  * AJD4JP
- * Copyright (c) 2011-2017  Akira Terasaki
+ * Copyright (c) 2011-2019  Akira Terasaki
  * このファイルは同梱されているLicense.txtに定めた条件に
  * 同意できる場合にのみ利用可能です。
  */
@@ -21,19 +21,23 @@ public class Age {
 	}
 
 	private static int get(AJD birthday, AJD target, int sub) {
-		AJD s = new AJD(birthday);
-		AJD last = new AJD(s);
-		AJD e = new AJD(target);
+		AJD s = new AJD(birthday).trim();
+		AJD last = new AJD(s).addDay(sub);
+		AJD e = new AJD(target).trim();
+		int sub_year = 0;
 		while(true) {
-			last = last.addDay(-1).addDay(sub);
+			sub_year = s.getYear() - last.getYear();
 			try {
 				last = new AJD(e.getYear(), last.getMonth(), last.getDay());
 			}
-			catch(Exception ex){ continue; }
+			catch(Exception ex) {
+				last = last.addDay(1);
+				continue;
+			}
 			break;
 		}
-		int ret = e.getYear() - s.getYear() - 1;
-		if (last.compareTo(e) < 0) { ret++; }
+		int ret = e.getYear() - s.getYear() - 1 + sub_year;
+		if (last.compareTo(e) <= 0) { ret++; }
 		if (ret < 0) { ret = 0; }
 		return ret;
 	}

@@ -16,7 +16,7 @@ public class Version {
 	private static final String VERSION = "@@@ver";
 	private static final String	SITE = "(http://ajd4jp.osdn.jp/)";
 	private static final String TITLE = "AJD4JP " + VERSION + SITE;
-	private static final String COPY = "Copyright 2011-2017 @@@auth";
+	private static final String COPY = "Copyright 2011-2021 @@@auth";
 
 	/**
 	 * バージョン番号の取得。

@@ -1,13 +1,13 @@
 /*
  * AJD4JP
- * Copyright (c) 2011-2015  Akira Terasaki
+ * Copyright (c) 2011-2021  Akira Terasaki
  * このファイルは同梱されているLicense.txtに定めた条件に
  * 同意できる場合にのみ利用可能です。
  */
 package ajd4jp;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * 休日を管理します。
@@ -17,68 +17,78 @@ public class OffProvider {
 	/**
 	 * 休日を表します。
 	 */
-	public interface Off{}
-	private static class Dummy implements Off{}
+	public interface Off {
+	}
+
+	private static class Dummy implements Off {
+	}
+
 	static final Off dummy = new Dummy();
 
 	private boolean holi_f = false;
-	private Week[]	every_week = new Week[0];
+	private Week[] every_week = new Week[0];
 
 	private class MD {
 		private int hash;
-		MD( AJD ajd ) {
+
+		MD(AJD ajd) {
 			hash = ajd.getMonth() << 5 | ajd.getDay();
 		}
-		public int hashCode() { return hash; }
-		public boolean equals( Object o ) { return hash == o.hashCode(); }
+
+		public int hashCode() {
+			return hash;
+		}
+
+		public boolean equals(Object o) {
+			return hash == o.hashCode();
+		}
 	}
-	private HashMap<MD, Off>	every_year = new HashMap<MD, Off>();
-	private Off getMD( HashMap<MD, Off> md, AJD ajd ) {
-		if ( md == null )	return null;
-		return md.get( new MD( ajd ) );
+
+	private HashMap<MD, Off> every_year = new HashMap<MD, Off>();
+
+	private Off getMD(HashMap<MD, Off> md, AJD ajd) {
+		if (md == null)
+			return null;
+		return md.get(new MD(ajd));
 	}
 
 	private static class W {
-		private static HashMap<Integer, Month>	map = new HashMap<Integer, Month>();
-		private static Month getMonth( int y, int m ) throws AJDException {
-			int	no = (y << 4) | m;
-			Month	mon = null;
-			synchronized( map ) {
-				mon = map.get( no );
-				if ( mon == null ) {
-					mon = new Month( y, m );
-					map.put( no, mon );
-				}
-			}
-			return mon;
-		}
 		private int m;
 		private int seq;
 		private Week week;
 		private Off off;
-		W( int mm, int s, Week w, Off o ) {
+
+		W(int mm, int s, Week w, Off o) {
 			m = mm;
 			seq = s;
 			week = w;
-			off = ( o == null )?	OffProvider.dummy:	o;
+			off = (o == null) ? OffProvider.dummy : o;
 		}
-		public Off getOff( AJD ajd ) {
-			if ( ajd.getMonth() != m )	return null;
-			if ( ajd.getWeek() != week )	return null;
+
+		public Off getOff(AJD ajd) {
+			if (ajd.getMonth() != m)
+				return null;
+			if (ajd.getWeek() != week)
+				return null;
 			try {
-				Month	mon = getMonth( ajd.getYear(), m );
-				if ( ajd.trim().equals( mon.getWeek( seq, week ) ) )	return off;
+				Month mon = new Month(ajd.toYear(), m);
+				if (ajd.trim().equals(mon.getWeek(seq, week)))
+					return off;
+			} catch (AJDException e) {
 			}
-			catch( AJDException e ) {}
 			return null;
 		}
 	}
-	private ArrayList<W>	all_week = new ArrayList<W>();
-	private Off getW( ArrayList<W> week, AJD ajd ) {
-		if ( week == null )	return null;
-		for ( W w: week ) {
-			Off	off = w.getOff( ajd );
-			if ( off != null )	return off;
+
+	private ArrayList<W> all_week = new ArrayList<W>();
+
+	private Off getW(ArrayList<W> week, AJD ajd) {
+		if (week == null)
+			return null;
+		for (W w : week) {
+			Off off = w.getOff(ajd);
+			if (off != null)
+				return off;
 		}
 		return null;
 	}
@@ -86,42 +96,51 @@ public class OffProvider {
 	private class Y<E> {
 		private int from, to;
 		private E data;
-		Y( int f, int t, E e ) {
+
+		Y(int f, int t, E e) {
 			from = f;
 			to = t;
 			data = e;
 		}
-		E get( int y ) {
-			if ( from > y || to < y )	return null;
+
+		E get(int y) {
+			if (from > y || to < y)
+				return null;
 			return data;
 		}
-		E get( int f, int t ) {
-			if ( from == f && to == t )	return data;
+
+		E get(int f, int t) {
+			if (from == f && to == t)
+				return data;
 			return null;
 		}
 	}
-	private ArrayList<Y<HashMap<MD, Off>>>	one_year = new ArrayList<Y<HashMap<MD, Off>>>();
-	private ArrayList<Y<ArrayList<W>>>	one_week = new ArrayList<Y<ArrayList<W>>>();
+
+	private ArrayList<Y<HashMap<MD, Off>>> one_year = new ArrayList<Y<HashMap<MD, Off>>>();
+	private ArrayList<Y<ArrayList<W>>> one_week = new ArrayList<Y<ArrayList<W>>>();
 
 	/**
 	 * コンストラクタ。
 	 * 休日を全く持たないプロバイダを生成します。
 	 */
-	public OffProvider(){}
+	public OffProvider() {
+	}
+
 	/**
 	 * コンストラクタ。
 	 * 祝日の有効化指定、曜日指定を行います。
 	 * @param holiday_f true:祝日を休日にします、false:祝日を休日にしません。
 	 * @param week 毎週、指定曜日を休日にします。
 	 */
-	public OffProvider( boolean holiday_f, Week ... week ) {
+	public OffProvider(boolean holiday_f, Week... week) {
 		holi_f = holiday_f;
 		every_week = week;
 	}
 
-	private void add( HashMap<MD, Off> map, AJD ajd, Off off ) {
-		if ( off == null )	off = dummy;
-		map.put( new MD( ajd ), off );
+	private void add(HashMap<MD, Off> map, AJD ajd, Off off) {
+		if (off == null)
+			off = dummy;
+		map.put(new MD(ajd), off);
 	}
 
 	/**
@@ -130,9 +149,9 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOffEveryYear( AJD ajd, Off off ) {
-		synchronized( every_year ) {
-			add( every_year, ajd, off );
+	public void addOffEveryYear(AJD ajd, Off off) {
+		synchronized (every_year) {
+			add(every_year, ajd, off);
 		}
 	}
 
@@ -143,16 +162,17 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOffEveryYear( AJD from, AJD to, Off off ) {
+	public void addOffEveryYear(AJD from, AJD to, Off off) {
 		try {
-			from = new AJD( 2000, from.getMonth(), from.getDay() );
-			to = new AJD( 2000, to.getMonth(), to.getDay() );
+			from = new AJD(2000, from.getMonth(), from.getDay());
+			to = new AJD(2000, to.getMonth(), to.getDay());
+		} catch (AJDException e) {
 		}
-		catch( AJDException e ) {}
-		while( true ) {
-			addOffEveryYear( from, off );
-			if ( from.getMonth() == to.getMonth() && from.getDay() == to.getDay() )	break;
-			from = from.addDay( 1 );
+		while (true) {
+			addOffEveryYear(from, off);
+			if (from.getMonth() == to.getMonth() && from.getDay() == to.getDay())
+				break;
+			from = from.addDay(1);
 		}
 	}
 
@@ -163,9 +183,9 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOffEveryYearMonth( int seq, Week week, Off off ) {
-		for ( int  i = 1; i <= 12; i++ ) {
-			addOffEveryYearMonth( i, seq, week, off );
+	public void addOffEveryYearMonth(int seq, Week week, Off off) {
+		for (int i = 1; i <= 12; i++) {
+			addOffEveryYearMonth(i, seq, week, off);
 		}
 	}
 
@@ -177,14 +197,14 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOffEveryYearMonth( int mm, int seq, Week week, Off off ) {
-		synchronized( all_week ) {
-			add( all_week, mm, seq, week, off );
+	public void addOffEveryYearMonth(int mm, int seq, Week week, Off off) {
+		synchronized (all_week) {
+			add(all_week, mm, seq, week, off);
 		}
 	}
 
-	private void add( ArrayList<W> list, int mm, int seq, Week w, Off off ) {
-		list.add( new W( mm, seq, w, off ) );
+	private void add(ArrayList<W> list, int mm, int seq, Week w, Off off) {
+		list.add(new W(mm, seq, w, off));
 	}
 
 	/**
@@ -195,18 +215,19 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOff( int from_y, int to_y, AJD ajd, Off off ) {
-		synchronized( one_year ) {
-			HashMap<MD, Off>	map = null;
-			for ( Y<HashMap<MD, Off>> y: one_year ) {
-				map = y.get( from_y, to_y );
-				if ( map != null )	break;
+	public void addOff(int from_y, int to_y, AJD ajd, Off off) {
+		synchronized (one_year) {
+			HashMap<MD, Off> map = null;
+			for (Y<HashMap<MD, Off>> y : one_year) {
+				map = y.get(from_y, to_y);
+				if (map != null)
+					break;
 			}
-			if ( map == null ) {
+			if (map == null) {
 				map = new HashMap<MD, Off>();
-				one_year.add( new Y<HashMap<MD, Off>>( from_y, to_y, map ) );
+				one_year.add(new Y<HashMap<MD, Off>>(from_y, to_y, map));
 			}
-			add( map, ajd, off );
+			add(map, ajd, off);
 		}
 	}
 
@@ -219,16 +240,17 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOff( int from_y, int to_y, AJD from, AJD to, Off off ) {
+	public void addOff(int from_y, int to_y, AJD from, AJD to, Off off) {
 		try {
-			from = new AJD( 2000, from.getMonth(), from.getDay() );
-			to = new AJD( 2000, to.getMonth(), to.getDay() );
+			from = new AJD(2000, from.getMonth(), from.getDay());
+			to = new AJD(2000, to.getMonth(), to.getDay());
+		} catch (AJDException e) {
 		}
-		catch( AJDException e ) {}
-		while( true ) {
-			addOff( from_y, to_y, from, off );
-			if ( from.getMonth() == to.getMonth() && from.getDay() == to.getDay() )	break;
-			from = from.addDay( 1 );
+		while (true) {
+			addOff(from_y, to_y, from, off);
+			if (from.getMonth() == to.getMonth() && from.getDay() == to.getDay())
+				break;
+			from = from.addDay(1);
 		}
 	}
 
@@ -241,9 +263,9 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOff( int from_y, int to_y, int seq, Week week, Off off ) {
-		for ( int  i = 1; i <= 12; i++ ) {
-			addOffEveryMonth( from_y, to_y, i, seq, week, off );
+	public void addOff(int from_y, int to_y, int seq, Week week, Off off) {
+		for (int i = 1; i <= 12; i++) {
+			addOffEveryMonth(from_y, to_y, i, seq, week, off);
 		}
 	}
 
@@ -257,18 +279,19 @@ public class OffProvider {
 	 * @param off その休日を表すインスタンス。
 	 * nullを指定すると、ダミーインスタンスを割り当てます。
 	 */
-	public void addOffEveryMonth( int from_y, int to_y, int mm, int seq, Week week, Off off ) {
-		synchronized( one_week ) {
-			ArrayList<W>	list = null;
-			for ( Y<ArrayList<W>> y: one_week ) {
-				list = y.get( from_y, to_y );
-				if ( list != null )	break;
+	public void addOffEveryMonth(int from_y, int to_y, int mm, int seq, Week week, Off off) {
+		synchronized (one_week) {
+			ArrayList<W> list = null;
+			for (Y<ArrayList<W>> y : one_week) {
+				list = y.get(from_y, to_y);
+				if (list != null)
+					break;
 			}
-			if ( list == null ) {
+			if (list == null) {
 				list = new ArrayList<W>();
-				one_week.add( new Y<ArrayList<W>>( from_y, to_y, list ) );
+				one_week.add(new Y<ArrayList<W>>(from_y, to_y, list));
 			}
-			add( list, mm, seq, week, off );
+			add(list, mm, seq, week, off);
 		}
 	}
 
@@ -281,37 +304,42 @@ public class OffProvider {
 	 * 返す場合があります。<br>
 	 * 休日でなければ null です。
 	 */
-	public Off getOff( AJD ajd ) {
-		Off	off = null;
-		if ( holi_f ) {
-			off = Holiday.getHoliday( ajd );
-			if ( off != null )	return off;
+	public Off getOff(AJD ajd) {
+		Off off = null;
+		if (holi_f) {
+			off = Holiday.getHoliday(ajd);
+			if (off != null)
+				return off;
 		}
-		synchronized( every_year ) {
-			off = getMD( every_year, ajd );
+		synchronized (every_year) {
+			off = getMD(every_year, ajd);
 		}
-		if ( off != null )	return off;
-		synchronized( all_week ) {
-			off = getW( all_week, ajd );
+		if (off != null)
+			return off;
+		synchronized (all_week) {
+			off = getW(all_week, ajd);
 		}
-		if ( off != null )	return off;
-		synchronized( one_year ) {
-			for ( Y<HashMap<MD, Off>> y: one_year ) {
-				off = getMD( y.get( ajd.getYear() ), ajd );
-				if ( off != null )	return off;
+		if (off != null)
+			return off;
+		synchronized (one_year) {
+			for (Y<HashMap<MD, Off>> y : one_year) {
+				off = getMD(y.get(ajd.getYear()), ajd);
+				if (off != null)
+					return off;
 			}
 		}
-		synchronized( one_week ) {
-			for ( Y<ArrayList<W>> y: one_week ) {
-				off = getW( y.get( ajd.getYear() ), ajd );
-				if ( off != null )	return off;
+		synchronized (one_week) {
+			for (Y<ArrayList<W>> y : one_week) {
+				off = getW(y.get(ajd.getYear()), ajd);
+				if (off != null)
+					return off;
 			}
 		}
-		Week	w = ajd.getWeek();
-		for ( Week d: every_week ) {
-			if ( d == w )	return d;
+		Week w = ajd.getWeek();
+		for (Week d : every_week) {
+			if (d == w)
+				return d;
 		}
 		return null;
 	}
 }
-

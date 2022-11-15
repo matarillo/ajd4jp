@@ -13,10 +13,10 @@ package ajd4jp;
  */
 public class Version {
 	private Version(){}
-	private static final String VERSION = "1.4.6.2019";
+	private static final String VERSION = "8.0.2.2021";
 	private static final String	SITE = "(http://ajd4jp.osdn.jp/)";
 	private static final String TITLE = "AJD4JP " + VERSION + SITE;
-	private static final String COPY = "Copyright 2011-2017 Akira Terasaki";
+	private static final String COPY = "Copyright 2011-2021 Akira Terasaki";
 
 	/**
 	 * バージョン番号の取得。

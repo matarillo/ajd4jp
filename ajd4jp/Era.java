@@ -1,13 +1,14 @@
 /*
  * AJD4JP
- * Copyright (c) 2011-2019  Akira Terasaki
+ * Copyright (c) 2011-2021  Akira Terasaki
  * このファイルは同梱されているLicense.txtに定めた条件に
  * 同意できる場合にのみ利用可能です。
  */
 package ajd4jp;
 
-import java.util.*;
-import ajd4jp.format.*;
+import java.util.HashMap;
+
+import ajd4jp.format.JapaneseYearF;
 
 
 class EraWork {
@@ -112,9 +113,9 @@ public enum Era {
 	 */
 	public boolean isValid( AJD date ) {
 		if ( date == null )	return false;
+		date = date.trim();
 		if ( start.compareTo( date ) > 0 )	return false;
 		if ( end == null )	return true;
-		date = date.trim();
 		if ( end.compareTo( date ) < 0 )	return false;
 		return true;
 	}

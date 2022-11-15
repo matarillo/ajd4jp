@@ -1,24 +1,24 @@
 /*
  * AJD4JP
- * Copyright (c) 2011-2017  Akira Terasaki
+ * Copyright (c) 2011-2021  Akira Terasaki
  * このファイルは同梱されているLicense.txtに定めた条件に
  * 同意できる場合にのみ利用可能です。
  */
 package ajd4jp.iso;
-import ajd4jp.*;
-import ajd4jp.util.*;
-import java.util.*;
-import java.math.*;
-import java.time.*;
-import java.time.temporal.*;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
+
+import ajd4jp.AJD;
+import ajd4jp.AJDException;
+import ajd4jp.Day;
 
 
 /**
- * java.time 変換。<br>
  * {@link java.time.ZonedDateTime}をラップする
  * {@link ajd4jp.AJD}派生クラスです。<br>
- * 内部では {@link java.util.Date} へ丸め込みを挟むため、マイクロ秒情報は
- * 損失しますので注意してください。<br><br>
  * Date and Time API（JSR-310）では、ISO-8601 に従い、
  * 先発グレゴリオ暦法を採用しています。<br>
  * AJD4JP では、ユリウス通日を骨子としているため、
@@ -27,6 +27,9 @@ import java.time.temporal.*;
  * 年月日とした場合の値が双方で異なります。注意してください。
  */
 public class AJD310 extends AJD {
+	/** Asia/Tokyoタイムゾーン */
+	public static final ZoneId JP_ZONE = ZoneId.of("Asia/Tokyo");
+
 	private ZonedDateTime iso;
 	private static String getOffsetHM(ZonedDateTime zdt, boolean std) {
 		int min = zdt.getOffset().getTotalSeconds() / 60;
@@ -46,10 +49,11 @@ public class AJD310 extends AJD {
 	 * または拡張形式(YYYY-MM-DDThh:mm:ss+nn:nn)。
 	 */
 	public String toIsoString(boolean std) {
-		return String.format(std?
+		int yyyy = Math.abs(getYear());
+		return (getYear() < 0? "-": "") + String.format(std?
 			"%04d%02d%02dT%02d%02d%02d":
 			"%04d-%02d-%02dT%02d:%02d:%02d",
-			getYear(),
+			yyyy,
 			getMonth(),
 			getDay(),
 			getHour(),
@@ -58,12 +62,13 @@ public class AJD310 extends AJD {
 		) + getOffsetHM(iso, std);
 	}
 
-	private static BigDecimal getOffset(ZonedDateTime zdt) {
-		if (zdt == null) { return Calc.JP_H; }
-		return Calc.div(new BigDecimal(zdt.getOffset().getTotalSeconds()), Calc.J86400);
-	}
-	private AJD310(ZonedDateTime zdt) {
-		super(Date.from(zdt.toInstant()), getOffset(zdt));
+	/**
+	 * コンストラクタ。
+	 * @param zdt 設定値
+	 * @throws AJDException 例外
+	 */
+	protected AJD310(ZonedDateTime zdt) throws AJDException {
+		super(zdt.toInstant(), ()->zdt.getOffset());
 		iso = zdt;
 	}
 
@@ -77,22 +82,57 @@ public class AJD310 extends AJD {
 	}
 
 	/**
+	 * {@link java.time.ZonedDateTime#withZoneSameLocal(ZoneId)}にて、ローカルタイムを維持してタイムゾーンを変更します。
+	 * @param zone 変更先タイムゾーン。
+	 * @return 変更後インスタンス。
+	 */
+	public AJD310 withZoneSameLocal(ZoneId zone) {
+		return AJD310.of(toZonedDateTime().withZoneSameLocal(zone));
+	}
+	/**
+	 * {@link java.time.ZonedDateTime#withZoneSameInstant(ZoneId)}にて、インスタントを維持してタイムゾーンを変更します。
+	 * @param zone 変更先タイムゾーン。
+	 * @return 変更後インスタンス。
+	 */
+	public AJD310 withZoneSameInstant(ZoneId zone) {
+		return AJD310.of(toZonedDateTime().withZoneSameInstant(zone));
+	}
+
+	/**
 	 * インスタンス取得。
 	 * @param date 変換元日時。
 	 * @param zone タイムゾーン。
 	 * @return インスタンス。
 	 */
-	public static AJD310 of(Date date, ZoneId zone) {
-		return of(ZonedDateTime.ofInstant(date.toInstant(), zone));
+	public static AJD310 of(java.util.Date date, ZoneId zone) {
+		return of(ZonedDateTime.ofInstant(date2Instant(date, zone), zone));
+	}
+
+	/**
+	 * インスタンス取得。
+	 * @param calendar カレンダー。タイムゾーンはこのインスタンスのものを引き継ぎます。
+	 * @return インスタンス。
+	 */
+	public static AJD310 of(Calendar calendar) {
+		return of(ZonedDateTime.ofInstant(calendar.toInstant(), calendar.getTimeZone().toZoneId()));
+	}
+
+	/**
+	 * タイムゾーン取得。
+	 * @return タイムゾーン。
+	 */
+	@Override
+	public ZoneId getZoneId() {
+		return iso.getZone();
 	}
 
 	@Override
-	protected AJD from(Number num) {
-		return of(super.from(num), iso.getZone());
+	protected AJD from(Instant ins) {
+		return of(ZonedDateTime.ofInstant(ins, iso.getZone()));
 	}
 	@Override
-	protected AJD from(int yyyy, int mm, int dd, int hh, int mi, int ss) throws AJDException {
-		return new AJD310(yyyy, mm, dd, hh, mi, ss, getOffset(iso));
+	protected AJD from(int yyyy, int mm, int dd, int hh, int mi, int ss, int ns) throws AJDException {
+		return of(ZonedDateTime.of(yyyy, mm, dd, hh, mi, ss, ns, iso.getZone()));
 	}
 
 	/**
@@ -114,8 +154,52 @@ public class AJD310 extends AJD {
 		return of(ZonedDateTime.now(zone));
 	}
 
-	private AJD310(int yyyy, int mm, int dd, int hh, int mi, int ss, BigDecimal offset) throws AJDException {
-		super(yyyy, mm, dd, hh, mi, ss, offset);
+	/**
+	 * インスタンス取得。
+	 * @param yyyy 年。
+	 * @param mm 月。1～12。
+	 * @param dd 日。1～N。
+	 * @param hh 時。0～23。
+	 * @param mi 分。0～59。
+	 * @param ss 秒。0～59。
+	 * @param ns ナノ秒。0～999,999,999。
+	 * @return インスタンス。
+	 * @throws DateTimeException 不正な日付。
+	 */
+	public static AJD310 of(Year yyyy, int mm, int dd, int hh, int mi, int ss, int ns) throws DateTimeException {
+		return of(ZonedDateTime.of(yyyy.getAjdYear(), mm, dd, hh, mi, ss, ns, yyyy.getZoneId()));
+	}
+	/**
+	 * インスタンス取得。
+	 * @param yyyy 年。0は指定できません。BC1年は-1です。
+	 * @param mm 月。1～12。
+	 * @param dd 日。1～N。
+	 * @param hh 時。0～23。
+	 * @param mi 分。0～59。
+	 * @param ss 秒。0～59。
+	 * @param ns ナノ秒。0～999,999,999。
+	 * @param zone タイムゾーン。
+	 * @return インスタンス。
+	 * @throws DateTimeException 不正な日付。
+	 */
+	public static AJD310 of(int yyyy, int mm, int dd, int hh, int mi, int ss, int ns, ZoneId zone) throws DateTimeException {
+		if (yyyy == 0) { throw new AJDException("年が0です。"); }
+		return of(ZonedDateTime.of(yyyy < 0? yyyy + 1: yyyy, mm, dd, hh, mi, ss, ns, zone));
+	}
+
+	/**
+	 * インスタンス取得。
+	 * @param yyyy 年。
+	 * @param mm 月。1～12。
+	 * @param dd 日。1～N。
+	 * @param hh 時。0～23。
+	 * @param mi 分。0～59。
+	 * @param ss 秒。0～59。
+	 * @return インスタンス。
+	 * @throws DateTimeException 不正な日付。
+	 */
+	public static AJD310 of(Year yyyy, int mm, int dd, int hh, int mi, int ss) throws DateTimeException {
+		return of(yyyy.getAjdYear(), mm, dd, hh, mi, ss, yyyy.getZoneId());
 	}
 	/**
 	 * インスタンス取得。
@@ -130,7 +214,20 @@ public class AJD310 extends AJD {
 	 * @throws DateTimeException 不正な日付。
 	 */
 	public static AJD310 of(int yyyy, int mm, int dd, int hh, int mi, int ss, ZoneId zone) throws DateTimeException {
-		return of(ZonedDateTime.of(yyyy < 0? yyyy + 1: yyyy, mm, dd, hh, mi, ss, 0, zone));
+		return of(yyyy, mm, dd, hh, mi, ss, 0, zone);
+	}
+
+	/**
+	 * インスタンス取得。
+	 * 時間は 00:00:00 となります。
+	 * @param yyyy 年。
+	 * @param mm 月。1～12。
+	 * @param dd 日。1～N。
+	 * @return インスタンス。
+	 * @throws AJDException 不正な日付。
+	 */
+	public static AJD310 of(Year yyyy, int mm, int dd) throws AJDException {
+		return of(yyyy.getAjdYear(), mm, dd, yyyy.getZoneId());
 	}
 	/**
 	 * インスタンス取得。
@@ -143,7 +240,11 @@ public class AJD310 extends AJD {
 	 * @throws AJDException 不正な日付。
 	 */
 	public static AJD310 of(int yyyy, int mm, int dd, ZoneId zone) throws AJDException {
-		return of(yyyy, mm, dd, 0, 0, 0, zone);
+		try {
+			return of(yyyy, mm, dd, 0, 0, 0, zone);
+		}
+		catch(AJDException ae) { throw ae; }
+		catch(Exception etc) { throw new AJDException(etc); }
 	}
 
 	/**
